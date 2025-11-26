@@ -131,6 +131,56 @@
         margin-bottom: 40px;
     }
 
+    .preset-section {
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .preset-section h3 {
+        font-size: 18px;
+        margin-bottom: 15px;
+        font-weight: 600;
+        opacity: 0.9;
+    }
+
+    .preset-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .preset-btn {
+        padding: 10px 20px;
+        border: 2px solid rgba(255, 255, 255, 0.4);
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        font-family: 'Poppins', sans-serif;
+        cursor: pointer;
+        background: rgba(255, 255, 255, 0.15);
+        color: white;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(5px);
+    }
+
+    .preset-btn:hover {
+        background: rgba(255, 255, 255, 0.25);
+        border-color: rgba(255, 255, 255, 0.6);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+    }
+
+    .preset-btn:active {
+        transform: translateY(0);
+    }
+
+    @media (max-width: 600px) {
+        .preset-btn {
+            width: 100%;
+        }
+    }
+
     .input-group {
         display: flex;
         gap: 12px;
@@ -365,6 +415,14 @@
     <h1>Les mousquetaires</h1>
 
     <div class="container">
+        <div class="preset-section">
+            <h3>📋 Listes prédéfinies</h3>
+            <div class="preset-buttons">
+                <button class="preset-btn" onclick="loadPreset('restaurants')">🍽️ Restaurants</button>
+                <button class="preset-btn" onclick="loadPreset('prenoms')">👥 Prénoms</button>
+            </div>
+        </div>
+
         <div class="input-section">
             <div class="input-group">
                 <input type="text" id="itemInput" placeholder="Entrez un élément..." />
@@ -381,7 +439,21 @@
     </div>
 
 <script>
-    let items = ['Hichem', 'Renato', 'Steven', 'Hichem', 'Renato', 'Steven', 'Hichem', 'Renato', 'Steven', 'Hichem', 'Renato', 'Steven'];
+    // Listes prédéfinies
+    const presetLists = {
+        restaurants: [
+            'Pizza', 'Sushi', 'BK', 'MCDO',
+            'Grillade/tacos', 'Burger rond point', 'Thaï',
+             'Grec', 'A la maison'
+        ],
+        prenoms: [
+            'Hichem', 'Renato', 'Steven', 'Hichem',
+            'Renato', 'Steven', 'Hichem', 'Renato',
+            'Steven', 'Hichem', 'Renato', 'Steven'
+        ]
+    };
+
+    let items = [];
     let currentRotation = 0;
     let isSpinning = false;
 
@@ -556,9 +628,40 @@
         canvas.classList.add('spinning');
         document.getElementById('result').textContent = 'La roue tourne...';
 
+        // Easter egg: chercher "psg" dans la liste (case insensitive)
+        const psgIndex = items.findIndex(item => item.toLowerCase().includes('psg'));
+
         // Random spin parameters
         const spinDuration = 3000 + Math.random() * 2000;
-        const totalRotation = 10 + Math.random() * 10; // 10-20 full rotations
+        let totalRotation = 10 + Math.random() * 10; // 10-20 full rotations
+
+        // Si PSG est dans la liste, tomber dessus à chaque fois (avec variations pour être moins évident)
+        if (psgIndex !== -1) {
+            const anglePerItem = (2 * Math.PI) / items.length;
+            const pointerAngle = (3 * Math.PI / 2); // Pointeur en haut
+
+            // Ajouter un décalage aléatoire dans le segment pour varier la position
+            const randomOffset = (Math.random() - 0.5) * anglePerItem * 0.6;
+
+            // On veut que : psgIndex * anglePerItem + currentRotation_final = pointerAngle (mod 2π)
+            // Donc : currentRotation_final = pointerAngle - psgIndex * anglePerItem (mod 2π)
+            let targetRotation = pointerAngle - psgIndex * anglePerItem - anglePerItem / 2 + randomOffset;
+
+            // Normaliser entre 0 et 2π
+            targetRotation = targetRotation % (2 * Math.PI);
+            if (targetRotation < 0) targetRotation += 2 * Math.PI;
+
+            // Calculer combien il faut tourner depuis la position actuelle
+            let rotationNeeded = targetRotation - (currentRotation % (2 * Math.PI));
+
+            // Si la différence est négative, ajouter un tour complet
+            if (rotationNeeded < 0) rotationNeeded += 2 * Math.PI;
+
+            // Ajouter des tours complets pour l'effet visuel (variation plus large)
+            const fullRotations = 9 + Math.floor(Math.random() * 7); // 9-15 tours
+            totalRotation = (fullRotations * 2 * Math.PI + rotationNeeded) / (2 * Math.PI);
+        }
+
         const finalRotation = totalRotation * 2 * Math.PI;
 
         const startTime = Date.now();
@@ -629,6 +732,12 @@
         drawWheel();
     }
 
+    function duplicateItem(index) {
+        items.splice(index, 0, items[index]);
+        updateItemsList();
+        drawWheel();
+    }
+
     function clearItems() {
         items = [];
         updateItemsList();
@@ -636,11 +745,20 @@
         document.getElementById('result').textContent = '';
     }
 
+    function loadPreset(presetName) {
+        if (presetLists[presetName]) {
+            items = [...presetLists[presetName]];
+            updateItemsList();
+            drawWheel();
+            document.getElementById('result').textContent = '';
+        }
+    }
+
     function updateItemsList() {
         const list = document.getElementById('itemsList');
         list.innerHTML = items.map((item, index) =>
             `<div class="item-tag">
-                <span>${item}</span>
+                <span onclick="duplicateItem(${index})" style="cursor: pointer;" title="Cliquer pour dupliquer">${item}</span>
                 <span class="remove-item" onclick="removeItem(${index})">✕</span>
             </div>`
         ).join('');
